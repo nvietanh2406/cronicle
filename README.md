@@ -36,7 +36,7 @@ The Cronicle documentation is split up across these files:
 
 ## Installation & Setup by Viet Anh
 
-- &rarr; **[Installation & Setup Viet Anh]()**
+- &rarr; **[Installation & Setup Viet Anh](https://github.com/nvietanh2406/cronicle/blob/main/Install-singer-node.md)**
 
 ## Glossary
 
