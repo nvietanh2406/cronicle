@@ -1,0 +1,97 @@
+# create role:
+use datx_portfolio_v2
+db.createRole({
+role: "mauticRead",
+privileges: [
+{ resource: { db: "datx_portfolio_v2", collection: "users" }, actions: [ "find" ] },
+{ resource: { db: "datx_portfolio_v2", collection: "members" }, actions: [ "find" ] }
+],
+roles: []
+})
+
+# UPDATE ROLES:
+use datx_portfolio_v2
+db.updateRole("mauticRead", {
+privileges: [
+{ resource: { db: "datx_portfolio_v2", collection: "users" }, actions: [ "find" ] },
+{ resource: { db: "datx_portfolio_v2", collection: "members" }, actions: [ "find" ] },
+{ resource: { db: "datx_portfolio_v2", collection: "roles" }, actions: [ "find" ] }
+],
+roles: []
+})
+
+
+# UPDATE ROLES:
+use admin
+db.grantRolesToUser("BackupUser", [ { role: 'restore', db: 'admin' },{ role: 'backup', db: 'admin' }])
+
+
+# create read-only acc for a specific DB:
+
+db.createUser({
+    user: "mkt_read",
+    pwd: "MnXrF5xivQpJ2JRxkLTiMzziKNDFa2NA", 
+	roles: [
+    { role: "read", db: "social_user" }
+  ]
+})
+						
+
+use test
+db.createUser(
+  {
+    user: "myTester",
+    pwd:  passwordPrompt(),   // or cleartext password
+    roles: [ { role: "readWrite", db: "test" },
+             { role: "read", db: "reporting" } ]
+  }
+)
+
+# Create backup account
+use admin
+db.createUser({
+  user: "BackupUser",
+  pwd: "DjL5hvJ5VCpLodkhtJWTRL5FruC2SCvM",
+  roles: [
+    { role: "backup", db: "admin" }
+  ]
+})
+
+
+# create read/write acc for a specific DB:
+
+use hsxPortfolioV1 
+db.createUser(
+  {
+    user: "test",
+    pwd:  "test",
+    roles: [ { role: "readWrite", db: "hsxPortfolioV1" }]
+  }
+)
+
+# Add more roles for a user:
+db.system.users.updateOne(
+  { user: 'ubuntu' },
+  { $addToSet: { roles: { role: 'readWrite', db: 'hsxAppOauth2' } } }
+)
+
+# remove an user from a database
+db.removeUser("insightadmin")
+
+# Or
+db.dropUser("insightadmin");
+
+
+# Update password 
+use admin
+db.changeUserPassword("backupUser", passwordPrompt())
+
+
+# URL Connection:
+PROD:
+mongosh "mongodb://root:i7rYlWNrXQMFHLsmOUuD4I4fATM6jaRx@192.168.0.22:27017,192.168.0.23:27017,192.168.0.24:27017/?authMechanism=DEFAULT&authSource=admin&replicaSet=datxRS0"
+ 
+DEV:
+mongosh "mongodb://root:Dat%402023@192.168.12.11:27017,192.168.12.21:27017,192.168.12.41:27017/?authMechanism=DEFAULT&authSource=admin&replicaSet=rsdev01"
+
+

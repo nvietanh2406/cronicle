@@ -1,0 +1,187 @@
+# I. Cluster Portfolio Databases:
+# on 136.186.108.164
+mysqldump -u ubuntu -p --databases brokerOrderDb brokerSummaryDb brokerTransactionDb hsxApp logDb orderDb orderDbDev orderLogsDb phaisinhOrderDb phaisinhPortfolioPerformanceDb phaisinhPortfolioSumDb phaisinhPortfolioSumForAppDb phaisinhPortfolioTransactionDb portfolioDataDb portfolioOrderDb portfolioPerformanceDb portfolioPerformanceHistDb portfolioRightDividendDb portfolioSumDb portfolioSumForAppDb portfolioTransactionDb runningLogsDb testdb transactionDb webDataDb |gzip > $(date +"%Y%m%d")-PortfolioDbs.sql.gz
+
+# on 192.168.0.32:
+scp ubuntu@136.186.108.164:/home/ubuntu/$(date +"%Y%m%d")-PortfolioDbs.sql.gz .
+gzip -d $(date +"%Y%m%d")-PortfolioDbs.sql.gz
+
+drop database brokerOrderDb;
+drop database brokerSummaryDb;
+drop database brokerTransactionDb;
+drop database hsxApp;
+drop database logDb;
+drop database orderDb;
+drop database orderDbDev;
+drop database orderLogsDb;
+drop database phaisinhOrderDb;
+drop database phaisinhPortfolioPerformanceDb;
+drop database phaisinhPortfolioSumDb;
+drop database phaisinhPortfolioSumForAppDb;
+drop database phaisinhPortfolioTransactionDb;
+drop database portfolioDataDb;
+drop database portfolioOrderDb;
+drop database portfolioPerformanceDb;
+drop database portfolioPerformanceHistDb;
+drop database portfolioRightDividendDb;
+drop database portfolioSumDb;
+drop database portfolioSumForAppDb;
+drop database portfolioTransactionDb;
+drop database runningLogsDb;
+drop database testdb;
+drop database transactionDb;
+drop database webDataDb;
+
+create database brokerOrderDb;
+create database brokerSummaryDb;
+create database brokerTransactionDb;
+create database hsxApp;
+create database logDb;
+create database orderDb;
+create database orderDbDev;
+create database orderLogsDb;
+create database phaisinhOrderDb;
+create database phaisinhPortfolioPerformanceDb;
+create database phaisinhPortfolioSumDb;
+create database phaisinhPortfolioSumForAppDb;
+create database phaisinhPortfolioTransactionDb;
+create database portfolioDataDb;
+create database portfolioOrderDb;
+create database portfolioPerformanceDb;
+create database portfolioPerformanceHistDb;
+create database portfolioRightDividendDb;
+create database portfolioSumDb;
+create database portfolioSumForAppDb;
+create database portfolioTransactionDb;
+create database runningLogsDb;
+create database testdb;
+create database transactionDb;
+create database webDataDb;
+
+mysql -u ubuntu -p < $(date +"%Y%m%d")-PortfolioDbs.sql
+
+
+
+# II. Cluster Stock Related Databases 
+# on 136.186.108.82
+mysqldump -u ubuntu -p --databases hsx hsxApp hsxIntraday hsxIntradayHist rebalanceTempDb |gzip > $(date +"%Y%m%d")-StockDbs.sql.gz
+
+# on 192.168.0.42 servers:
+scp ubuntu@136.186.108.82:/home/ubuntu/$(date +"%Y%m%d")-StockDbs.sql.gz .
+gzip -d $(date +"%Y%m%d")-StockDbs.sql.gz
+
+drop database hsx;
+drop database hsxApp;
+drop database hsxIntraday;
+drop database hsxIntradayHist;
+drop database rebalanceTempDb;
+
+create database hsx;
+create database hsxApp;
+create database hsxIntraday;
+create database hsxIntradayHist;
+create database rebalanceTempDb;
+
+mysql -u ubuntu -p < $(date +"%Y%m%d")-StockDbs.sql
+
+
+# III. updating-based cluseter 52/53
+# DATABASES_IN_OLD_CLUSTER = ['dataDb', 'etfDb', 'financeDb', 'financialDb', 'macroEconomicDb', 'marketDb', 'mediaContentDb', 'phaisinhTakingProfitDb', 'ratingDb', 'tplusDb', 'testdb', 'marketHistDb', 'rebalanceTempDb', 'sectorTempDb']
+# on 136.186.108.223
+mysqldump -u ubuntu -p --databases dataDb etfDb financeDb financialDb macroEconomicDb marketDb mediaContentDb phaisinhTakingProfitDb ratingDb rebalanceTempDb sectorTempDb testdb tplusDb |gzip > $(date +"%Y%m%d")-ratingDbs.sql.gz
+
+# on 192.168.0.52 servers:
+scp ubuntu@136.186.108.223:/home/ubuntu/$(date +"%Y%m%d")-ratingDbs.sql.gz .
+gzip -d $(date +"%Y%m%d")-ratingDbs.sql.gz
+
+drop database dataDb;
+drop database etfDb; 
+drop database financeDb ;
+drop database financialDb ;
+drop database macroEconomicDb ;
+drop database marketDb ;
+drop database mediaContentDb ;
+drop database phaisinhTakingProfitDb ;
+drop database ratingDb ;
+drop database rebalanceTempDb ;
+drop database sectorTempDb ;
+drop database testdb ;
+drop database tplusDb;
+
+create database dataDb;
+create database etfDb; 
+create database financeDb ;
+create database financialDb ;
+create database macroEconomicDb ;
+create database marketDb ;
+create database mediaContentDb ;
+create database phaisinhTakingProfitDb ;
+create database ratingDb ;
+create database rebalanceTempDb ;
+create database sectorTempDb ;
+create database testdb ;
+create database tplusDb;
+
+
+mysql -u ubuntu -p < $(date +"%Y%m%d")-ratingDbs.sql
+
+
+# IV. appending-based cluster 54/55
+# DATABASES_IN_NEW_CLUSTER = ['ratingDailyDb', 'ratingTrendDailyDb', 'ratingHistDb', 'tudoanh', 'errorLogDb', 'indexDb', 'phaisinhDb', 'sectorDb']
+# on 136.186.108.205
+mysqldump -u ubuntu -p --databases errorLogDb indexDb phaisinhDb ratingDailyDb ratingHistDb ratingTrendDailyDb sectorDb tudoanh |gzip > $(date +"%Y%m%d")-appendingDbs.sql.gz
+
+# on 192.168.0.54 servers:
+scp ubuntu@136.186.108.205:/home/ubuntu/$(date +"%Y%m%d")-appendingDbs.sql.gz .
+gzip -d $(date +"%Y%m%d")-appendingDbs.sql.gz
+
+
+drop database errorLogDb; 
+drop database indexDb; 
+drop database phaisinhDb; 
+drop database ratingDailyDb; 
+drop database ratingHistDb; 
+drop database ratingTrendDailyDb; 
+drop database sectorDb; 
+drop database tudoanh;
+
+create database errorLogDb; 
+create database indexDb; 
+create database phaisinhDb; 
+create database ratingDailyDb; 
+create database ratingHistDb; 
+create database ratingTrendDailyDb; 
+create database sectorDb; 
+create database tudoanh;
+
+mysql -u ubuntu -p < $(date +"%Y%m%d")-appendingDbs.sql
+
+
+
+# V. Global Data Cluster: Setup Master/Master for 136.186.108.61/192.168.0.61
+# On 136.186.108.61
+mysqldump -u ubuntu -p --databases commodity commodityDb globaldb hsx indices |gzip > $(date +"%Y%m%d")-GlobalDb.sql.gz
+
+# On 192.168.0.61
+scp ubuntu@136.186.108.61:/home/ubuntu/$(date +"%Y%m%d")-GlobalDb.sql.gz .
+gzip -d $(date +"%Y%m%d")-GlobalDb.sql.gz
+
+create database commodity; 
+create database commodityDb; 
+create database globaldb ;
+create database hsx ;
+create database indices;
+
+mysql-u ubuntu -p < $(date +"%Y%m%d")-GlobalDb.sql
+
+
+create user repl@'192.168.0.0/24' identified by 'Datxvn@2019';
+GRANT REPLICATION SLAVE ON *.* TO 'repl'@'192.168.0.0/24';
+FLUSH PRIVILEGES; 
+create user ubuntu@'192.168.0.0/16' identified with mysql_native_password by 'Invoice@2019';
+GRANT all privileges ON *.* TO 'ubuntu'@'192.168.0.0/16';
+FLUSH PRIVILEGES; 
+create user datreadonly@'%' identified by 'Datx&2022' require SSL;
+grant SELECT, SHOW VIEW on *.* to datreadonly@'%';
+flush privileges;
+

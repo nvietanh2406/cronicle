@@ -1,0 +1,402 @@
+ubuntu / Invoice@2019
+
+
+# I. Cluster Portfolio Databases:
+1. Restore DB to Master Cluster:
+# on 136.186.108.164
+$ byobu-screen -DDR hh
+mysqldump -u ubuntu -p --databases brokerOrderDb brokerSummaryDb brokerTransactionDb hsxApp logDb orderDb orderDbDev orderLogsDb phaisinhOrderDb phaisinhPortfolioPerformanceDb phaisinhPortfolioSumDb phaisinhPortfolioSumForAppDb phaisinhPortfolioTransactionDb portfolioDataDb portfolioOrderDb portfolioPerformanceDb portfolioPerformanceHistDb portfolioRightDividendDb portfolioSumDb portfolioSumForAppDb portfolioTransactionDb runningLogsDb testdb transactionDb webDataDb |gzip > $(date +"%Y%m%d")-PortfolioDbs.sql.gz
+
+# on 192.168.0.32:
+$ byobu-screen -DDR hh
+rsync -avzP hung.le@136.186.108.164:/home/hung.le/$(date +"%Y%m%d")-PortfolioDbs.sql.gz .
+gzip -d $(date +"%Y%m%d")-PortfolioDbs.sql.gz
+
+$ mysql -u root -p
+
+drop database brokerOrderDb;
+drop database brokerSummaryDb;
+drop database brokerTransactionDb;
+drop database hsxApp;
+drop database logDb;
+drop database orderDb;
+drop database orderDbDev;
+drop database orderLogsDb;
+drop database phaisinhOrderDb;
+drop database phaisinhPortfolioPerformanceDb;
+drop database phaisinhPortfolioSumDb;
+drop database phaisinhPortfolioSumForAppDb;
+drop database phaisinhPortfolioTransactionDb;
+drop database portfolioDataDb;
+drop database portfolioOrderDb;
+drop database portfolioPerformanceDb;
+drop database portfolioPerformanceHistDb;
+drop database portfolioRightDividendDb;
+drop database portfolioSumDb;
+drop database portfolioSumForAppDb;
+drop database portfolioTransactionDb;
+drop database runningLogsDb;
+drop database testdb;
+drop database transactionDb;
+drop database webDataDb;
+
+create database brokerOrderDb;
+create database brokerSummaryDb;
+create database brokerTransactionDb;
+create database hsxApp;
+create database logDb;
+create database orderDb;
+create database orderDbDev;
+create database orderLogsDb;
+create database phaisinhOrderDb;
+create database phaisinhPortfolioPerformanceDb;
+create database phaisinhPortfolioSumDb;
+create database phaisinhPortfolioSumForAppDb;
+create database phaisinhPortfolioTransactionDb;
+create database portfolioDataDb;
+create database portfolioOrderDb;
+create database portfolioPerformanceDb;
+create database portfolioPerformanceHistDb;
+create database portfolioRightDividendDb;
+create database portfolioSumDb;
+create database portfolioSumForAppDb;
+create database portfolioTransactionDb;
+create database runningLogsDb;
+create database testdb;
+create database transactionDb;
+create database webDataDb;
+
+mysql -u ubuntu -p < $(date +"%Y%m%d")-PortfolioDbs.sql
+
+ubuntu / Invoice@2019
+
+2: Config DB Replicate:
+
+# on 192.168.0.32:
+
+$ byobu-screen -DDR hh
+$ mysql -u root -p
+
+show master status\G
+
+*************************** 1. row ***************************
+File: mysql-bin.xxx
+Position: yyy
+Binlog_Do_DB:
+Binlog_Ignore_DB:
+Executed_Gtid_Set:
+1 row in set (0.00 sec)
+
+#Note: xxx, yyy
+
+# on 192.168.0.31:
+$ byobu-screen -DDR hh
+$ mysql -u root -p
+
+stop slave;
+reset slave all;
+CHANGE MASTER TO MASTER_HOST = '192.168.0.32', MASTER_USER = 'repl', MASTER_PASSWORD = 'Datxvn@2019', MASTER_LOG_FILE = 'mysql-bin.000016', MASTER_LOG_POS = 262752722;
+start slave;
+
+#Voi xxx, yyy lay tu tren:
+
+# Verify:
+show slave status\G
+
+# II. Cluster Stock Related Databases 
+1. Restore DB to Master Cluster:
+# on 136.186.108.229
+$ byobu-screen -DDR hh
+
+mysqldump -u ubuntu -p --databases hsx hsxApp hsxIntraday hsxIntradayHist rebalanceTempDb |gzip > $(date +"%Y%m%d")-StockDbs.sql.gz
+
+# on 192.168.0.42 servers:
+$ byobu-screen -DDR hh
+rsync -avzP hung.le@136.186.108.229:/home/hung.le/$(date +"%Y%m%d")-StockDbs.sql.gz .
+gzip -d $(date +"%Y%m%d")-StockDbs.sql.gz
+
+$ mysql -u root -p
+
+drop database hsx;
+drop database hsxApp;
+drop database hsxIntraday;
+drop database hsxIntradayHist;
+drop database rebalanceTempDb;
+
+create database hsx;
+create database hsxApp;
+create database hsxIntraday;
+create database hsxIntradayHist;
+create database rebalanceTempDb;
+
+mysql -u ubuntu -p < $(date +"%Y%m%d")-StockDbs.sql
+
+ubuntu / Invoice@2019
+
+2: Config DB Replicate:
+# on 192.168.0.42:
+$ byobu-screen -DDR hh
+$ mysql -u root -p
+show master status\G
+
+*************************** 1. row ***************************
+File: mysql-bin.xxx
+Position: yyy
+Binlog_Do_DB:
+Binlog_Ignore_DB:
+Executed_Gtid_Set:
+1 row in set (0.00 sec)
+
+#Note: xxx, yyy
+
+# on 192.168.0.41:
+$ byobu-screen -DDR hh
+$ mysql -u root -p
+
+stop slave;
+reset slave all;
+CHANGE MASTER TO MASTER_HOST = '192.168.0.42', MASTER_USER = 'repl', MASTER_PASSWORD = 'Datxvn@2019', MASTER_LOG_FILE = 'mysql-bin.000010', MASTER_LOG_POS = 105801112;
+start slave;
+#Voi xxx, yyy lay tu tren:
+#- Verify:
+show slave status\G
+
+# III. updating-based cluseter 52/53
+1. Restore DB to Master Cluster:
+
+# DATABASES_IN_OLD_CLUSTER = ['dataDb', 'etfDb', 'financeDb', 'financialDb', 'macroEconomicDb', 'marketDb', 'mediaContentDb', 'phaisinhTakingProfitDb', 'ratingDb', 'tplusDb', 'testdb', 'marketHistDb', 'rebalanceTempDb', 'sectorTempDb']
+# on 136.186.108.223
+$ byobu-screen -DDR hh
+
+mysqldump -u ubuntu -p --databases dataDb etfDb financeDb financialDb macroEconomicDb marketDb mediaContentDb phaisinhTakingProfitDb ratingDb rebalanceTempDb sectorTempDb testdb tplusDb |gzip > $(date +"%Y%m%d")-ratingDbs.sql.gz
+
+# on 192.168.0.52 servers:
+
+$ byobu-screen -DDR hh
+rsync -avzP hung.le@136.186.108.223:/home/hung.le/$(date +"%Y%m%d")-ratingDbs.sql.gz .
+gzip -d $(date +"%Y%m%d")-ratingDbs.sql.gz
+
+$mysql -u root -p
+
+drop database dataDb;
+drop database etfDb; 
+drop database financeDb ;
+drop database financialDb ;
+drop database macroEconomicDb ;
+drop database marketDb ;
+drop database mediaContentDb ;
+drop database phaisinhTakingProfitDb ;
+drop database ratingDb ;
+drop database rebalanceTempDb ;
+drop database sectorTempDb ;
+drop database testdb ;
+drop database tplusDb;
+
+create database dataDb;
+create database etfDb; 
+create database financeDb ;
+create database financialDb ;
+create database macroEconomicDb ;
+create database marketDb ;
+create database mediaContentDb ;
+create database phaisinhTakingProfitDb ;
+create database ratingDb ;
+create database rebalanceTempDb ;
+create database sectorTempDb ;
+create database testdb ;
+create database tplusDb;
+
+mysql -u ubuntu -p < $(date +"%Y%m%d")-ratingDbs.sql
+
+ubuntu / Invoice@2019
+
+# IV. appending-based cluster 54/55
+# DATABASES_IN_NEW_CLUSTER = ['ratingDailyDb', 'ratingTrendDailyDb', 'ratingHistDb', 'tudoanh', 'errorLogDb', 'indexDb', 'phaisinhDb', 'sectorDb']
+# on 136.186.108.205
+$ byobu-screen -DDR hh
+
+mysqldump -u ubuntu -p --databases errorLogDb indexDb phaisinhDb ratingDailyDb ratingHistDb ratingTrendDailyDb sectorDb tudoanh |gzip > $(date +"%Y%m%d")-appendingDbs.sql.gz
+
+# on 192.168.0.54 servers:
+rsync -avzP hung.le@136.186.108.205:/home/hung.le/$(date +"%Y%m%d")-appendingDbs.sql.gz .
+gzip -d $(date +"%Y%m%d")-appendingDbs.sql.gz
+
+
+drop database errorLogDb; 
+drop database indexDb; 
+drop database phaisinhDb; 
+drop database ratingDailyDb; 
+drop database ratingHistDb; 
+drop database ratingTrendDailyDb; 
+drop database sectorDb; 
+drop database tudoanh;
+
+create database errorLogDb; 
+create database indexDb; 
+create database phaisinhDb; 
+create database ratingDailyDb; 
+create database ratingHistDb; 
+create database ratingTrendDailyDb; 
+create database sectorDb; 
+create database tudoanh;
+
+mysql -u ubuntu -p < $(date +"%Y%m%d")-appendingDbs.sql
+
+ubuntu / Invoice@2019
+
+2: Config DB Replicate for 192.168.0.52 and 192.168.0.54:
+# on 192.168.0.52:
+$ byobu-screen -DDR hh
+$ mysql -u root -p
+
+show master status\G
+
+*************************** 1. row ***************************
+File: mysql-bin.xxx
+Position: yyy
+Binlog_Do_DB:
+Binlog_Ignore_DB:
+Executed_Gtid_Set:
+1 row in set (0.00 sec)
+
+#Note: xxx, yyy
+
+# on 192.168.0.54:
+$ byobu-screen -DDR hh
+$ mysql -u root -p
+
+show master status\G
+
+*************************** 1. row ***************************
+File: mysql-bin.zzz
+Position: ttt
+Binlog_Do_DB:
+Binlog_Ignore_DB:
+Executed_Gtid_Set:
+
+#note: zzz, ttt
+
+# on 192.168.0.51:
+$ byobu-screen -DDR hh
+$ mysql -u root -p
+
+STOP REPLICA FOR CHANNEL "db-rating01";
+stop replica for channel "db-appending01";
+stop slave;
+reset slave all;
+
+#Create channel 'db-rating02' to replica DBs from '192.168.0.52' 
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='192.168.0.52', SOURCE_USER='repl', SOURCE_PASSWORD='Datxvn@2019', SOURCE_LOG_FILE='mysql-bin.000028', SOURCE_LOG_POS=449586277 FOR CHANNEL 'db-rating02';
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE = ('dataDb.%','errorLogDb.%','etfDb.%','financeDb.%','financialDb.%','indexDb.%','macroEconomicDb.%','marketDb.%','mediaContentDb.%','phaisinhDb.%','phaisinhTakingProfitDb.%','ratingDb.%','rebalanceTempDb.%','sectorDb.%','sectorTempDb.%','tplusDb.%','tudoanh.%') FORCHANNEL 'db-rating02';
+
+START REPLICA FOR CHANNEL "db-rating02";
+SHOW REPLICA STATUS FOR CHANNEL "db-rating02"\G
+
+
+
+
+# Create channel “db-appending02” to replica DBs from 192.168.0.54
+
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="192.168.0.54", SOURCE_USER="repl", SOURCE_PASSWORD="Datxvn@2019", SOURCE_LOG_FILE='mysql-bin.000017', SOURCE_LOG_POS=237615368 FOR CHANNEL "db-appending02"; 
+
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE = ('ratingHistDb.%','ratingDailyDb.%','ratingTrendDailyDb.%','marketHistDb.%') FOR CHANNEL "db-appending02";
+START REPLICA FOR CHANNEL "db-appending02";
+SHOW REPLICA STATUS FOR CHANNEL "db-appending02"\G
+
+#Voi xxx, yyy, zzz, ttt lay tu phia tren:
+
+################################################################20230626######################
+# on servers 192.168.0.32
+
+﻿mysqldump -u ubuntu -p --databases brokerOrderDb brokerSummaryDb brokerTransactionDb hsxApp logDb orderDb orderDbDev orderLogsDb phaisinhOrderDb phaisinhPortfolioPerformanceDb phaisinhPortfolioSumDb phaisinhPortfolioSumForAppDb phaisinhPortfolioTransactionDb portfolioDataDb portfolioOrderDb portfolioPerformanceDb portfolioPerformanceHistDb portfolioRightDividendDb portfolioSumDb portfolioSumForAppDb portfolioTransactionDb runningLogsDb testdb transactionDb webDataDb |gzip > $(date +"%Y%m%d")-pfm02.sql.gz
+# on servers 192.168.0.31
+
+﻿rsync -avzP hung.le@136.186.108.164:/home/hung.le/$(date +"%Y%m%d")-pfm02.sql.gz .
+﻿gzip -d $(date +"%Y%m%d")-pfm02.sql.gz
+
+﻿stop slave;
+reset slave all;
+
+﻿drop database brokerOrderDb;
+drop database brokerSummaryDb;
+drop database brokerTransactionDb;
+drop database hsxApp;
+drop database logDb;
+drop database orderDb;
+drop database orderDbDev;
+drop database orderLogsDb;
+drop database phaisinhOrderDb;
+drop database phaisinhPortfolioPerformanceDb;
+drop database phaisinhPortfolioSumDb;
+drop database phaisinhPortfolioSumForAppDb;
+drop database phaisinhPortfolioTransactionDb;
+drop database portfolioDataDb;
+drop database portfolioOrderDb;
+drop database portfolioPerformanceDb;
+drop database portfolioPerformanceHistDb;
+drop database portfolioRightDividendDb;
+drop database portfolioSumDb;
+drop database portfolioSumForAppDb;
+drop database portfolioTransactionDb;
+drop database runningLogsDb;
+drop database testdb;
+drop database transactionDb;
+drop database webDataDb;
+
+﻿create database brokerOrderDb;
+create database brokerSummaryDb;
+create database brokerTransactionDb;
+create database hsxApp;
+create database logDb;
+create database orderDb;
+create database orderDbDev;
+create database orderLogsDb;
+create database phaisinhOrderDb;
+create database phaisinhPortfolioPerformanceDb;
+create database phaisinhPortfolioSumDb;
+create database phaisinhPortfolioSumForAppDb;
+create database phaisinhPortfolioTransactionDb;
+create database portfolioDataDb;
+create database portfolioOrderDb;
+create database portfolioPerformanceDb;
+create database portfolioPerformanceHistDb;
+create database portfolioRightDividendDb;
+create database portfolioSumDb;
+create database portfolioSumForAppDb;
+create database portfolioTransactionDb;
+create database runningLogsDb;
+create database testdb;
+create database transactionDb;
+create database webDataDb;
+
+
+B7: Import
+﻿mysql -u ubuntu -p < $(date +"%Y%m%d")-pfm02.sql
+
+# on 192.168.0.32:
+
+$ byobu-screen -DDR hh
+$ mysql -u root -p
+
+show master status\G
+
+*************************** 1. row ***************************
+File: mysql-bin.xxx
+Position: yyy
+Binlog_Do_DB:
+Binlog_Ignore_DB:
+Executed_Gtid_Set:
+1 row in set (0.00 sec)
+
+#Note: xxx, yyy
+
+# on 192.168.0.31:
+$ byobu-screen -DDR hh
+$ mysql -u root -p
+
+stop slave;
+reset slave all;
+CHANGE MASTER TO MASTER_HOST = '192.168.0.32', MASTER_USER = 'repl', MASTER_PASSWORD = 'Datxvn@2019', MASTER_LOG_FILE = 'mysql-bin.xxx', MASTER_LOG_POS = yyy;
+start slave;

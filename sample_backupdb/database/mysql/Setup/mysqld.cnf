@@ -1,0 +1,46 @@
+[mysqld]
+pid-file                        = /var/run/mysqld/mysqld.pid
+socket                          = /var/run/mysqld/mysqld.sock
+datadir                         = /var/lib/mysql
+log-error                       = /var/log/mysql/error.log
+
+user                            = mysql
+default_authentication_plugin   = mysql_native_password
+bind-address                    = 0.0.0.0
+key_buffer_size                 = 1024M
+open_files_limit                = 102400
+
+myisam-recover-options          = BACKUP
+
+max_connections                 = 65000
+innodb_rollback_on_timeout      = ON
+connect_timeout                 = 20
+delayed_insert_timeout          = 300
+innodb_lock_wait_timeout        = 90
+lock_wait_timeout               = 30
+net_read_timeout                = 60
+net_write_timeout               = 300
+wait_timeout                    = 30
+innodb_buffer_pool_size         = 8G
+
+interactive_timeout             = 300
+innodb_rollback_on_timeout      = ON
+
+# mater/slave config
+server-id                       = 56
+auto-increment-offset           = 2
+
+log_bin                         = /var/log/mysql/mysql-bin.log
+binlog_expire_logs_seconds      = 86400
+max_binlog_size                 = 500M
+log_bin_index                   = /var/log/mysql/mysql-bin.log.index
+relay_log                       = /var/log/mysql/mysql-relay-bin
+relay_log_index                 = /var/log/mysql/mysql-relay-bin.index
+relay_log_space_limit           = 4000000000
+#replicate-ignore-db            = mysql
+replicate-ignore-db             = information_schema
+replicate-ignore-db             = performance_schema
+replica_skip_errors             = all
+log_replica_updates             = ON
+
+tls_version                     = TLSv1.2,TLSv1.3

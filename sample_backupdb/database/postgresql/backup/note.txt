@@ -1,0 +1,10 @@
+su - postgres
+
+crontab -e
+
+0 2 * * * "/data/backups/database/postgresql/script/pg_backup_rotated.sh" >> /data/backups/database/postgresql/log/pg_backup_rotated.log 2>&1
+
+
+mkdir -p /data/backups/database/postgresql
+cd /data/backups/database/postgresql
+mkdir -p file log script

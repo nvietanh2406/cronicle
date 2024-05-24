@@ -1,0 +1,98 @@
+https://docs.percona.com/postgresql/12/solutions/ha-setup-apt.html#set-up-the-watchdog-service
+
+# CONFIGURE ETCD CLUSTER:
+#!/bin/bash
+sudo apt update -y
+sudo apt install etcd -y
+
+# datx-tsdb01
+sudo cp /etc/default/etcd	/etc/default/etcd.origin
+cat << EOF | sudo tee /etc/default/etcd
+ETCD_NAME=datx-tsdb-etcd01
+ETCD_INITIAL_CLUSTER="datx-tsdb-etcd01=http://10.0.0.11:2380"
+ETCD_INITIAL_CLUSTER_TOKEN="datx_token"
+ETCD_INITIAL_CLUSTER_STATE="new"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.0.0.11:2380"
+ETCD_DATA_DIR="/var/lib/etcd/postgresql"
+ETCD_LISTEN_PEER_URLS="http://10.0.0.11:2380"
+ETCD_LISTEN_CLIENT_URLS="http://10.0.0.11:2379,http://localhost:2379"
+ETCD_ADVERTISE_CLIENT_URLS="http://10.0.0.11:2379"
+EOF
+
+sudo systemctl restart etcd
+sudo systemctl enable etcd
+sudo systemctl status etcd
+
+# datx-tsdb02
+sudo cp /etc/default/etcd	/etc/default/etcd.origin
+cat << EOF | sudo tee /etc/default/etcd
+ETCD_NAME=datx-tsdb-etcd02
+ETCD_INITIAL_CLUSTER="datx-tsdb-etcd01=http://10.0.0.11:2380,datx-tsdb-etcd02=http://10.0.0.12:2380"
+ETCD_INITIAL_CLUSTER_TOKEN="datx_token"
+ETCD_INITIAL_CLUSTER_STATE="existing"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.0.0.12:2380"
+ETCD_DATA_DIR="/var/lib/etcd/postgresql"
+ETCD_LISTEN_PEER_URLS="http://10.0.0.12:2380"
+ETCD_LISTEN_CLIENT_URLS="http://10.0.0.12:2379,http://localhost:2379"
+ETCD_ADVERTISE_CLIENT_URLS="http://10.0.0.12:2379"
+EOF
+
+# Perform on datx-tsdb01
+sudo etcdctl member add datx-tsdb-etcd02 http://10.0.0.12:2380
+
+# Restart on datx-tsdb02
+sudo systemctl restart etcd
+sudo systemctl enable etcd
+sudo systemctl status etcd
+
+# datx-tsdb03
+sudo cp /etc/default/etcd	/etc/default/etcd.origin
+cat << EOF | sudo tee /etc/default/etcd
+ETCD_NAME=datx-tsdb-etcd03
+ETCD_INITIAL_CLUSTER="datx-tsdb-etcd01=http://10.0.0.11:2380,datx-tsdb-etcd02=http://10.0.0.12:2380,datx-tsdb-etcd03=http://10.0.0.13:2380"
+ETCD_INITIAL_CLUSTER_TOKEN="datx_token"
+ETCD_INITIAL_CLUSTER_STATE="existing"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.0.0.13:2380"
+ETCD_DATA_DIR="/var/lib/etcd/postgresql"
+ETCD_LISTEN_PEER_URLS="http://10.0.0.13:2380"
+ETCD_LISTEN_CLIENT_URLS="http://10.0.0.13:2379,http://localhost:2379"
+ETCD_ADVERTISE_CLIENT_URLS="http://10.0.0.13:2379"
+EOF
+
+# Perform on datx-tsdb01
+sudo etcdctl member add datx-tsdb-etcd03 http://10.0.0.13:2380
+
+# Restart on datx-tsdb03
+sudo systemctl restart etcd
+sudo systemctl enable etcd
+sudo systemctl status etcd
+
+
+# Test etcd on any of nodes:
+sudo etcdctl member list
+
+
+# Encoutering error:
+
+Oct 13 19:21:59 datx-tsdb03 etcd[813]: the clock difference against peer 9f8b6e6ea683d4a6 is too high [1.310648248s > 1s] (prober "ROUND_TRIPPER_SNAPSHOT")
+Oct 13 19:21:59 datx-tsdb03 etcd[813]: the clock difference against peer 9f8b6e6ea683d4a6 is too high [1.310562142s > 1s] (prober "ROUND_TRIPPER_RAFT_MESSAGE")
+
+Oct 13 19:21:41 datx-tsdb02 etcd[810]: lost the TCP streaming connection with peer 2fd514b7861b6235 (stream MsgApp v2 reader)
+Oct 13 19:21:41 datx-tsdb02 etcd[810]: lost the TCP streaming connection with peer 2fd514b7861b6235 (stream Message reader)
+Oct 13 19:21:41 datx-tsdb02 etcd[810]: failed to dial 2fd514b7861b6235 on stream MsgApp v2 (dial tcp 10.0.0.13:2380: connect: connection refused)
+Oct 13 19:21:41 datx-tsdb02 etcd[810]: peer 2fd514b7861b6235 became inactive (message send to peer failed)
+Oct 13 19:21:47 datx-tsdb02 etcd[810]: lost the TCP streaming connection with peer 2fd514b7861b6235 (stream Message writer)
+Oct 13 19:21:47 datx-tsdb02 etcd[810]: lost the TCP streaming connection with peer 2fd514b7861b6235 (stream MsgApp v2 writer)
+
+Oct 13 19:21:40 datx-tsdb01 etcd[811]: lost the TCP streaming connection with peer 2fd514b7861b6235 (stream Message reader)
+Oct 13 19:21:40 datx-tsdb01 etcd[811]: lost the TCP streaming connection with peer 2fd514b7861b6235 (stream MsgApp v2 reader)
+Oct 13 19:21:40 datx-tsdb01 etcd[811]: failed to dial 2fd514b7861b6235 on stream MsgApp v2 (dial tcp 10.0.0.13:2380: connect: connection refused)
+Oct 13 19:21:40 datx-tsdb01 etcd[811]: peer 2fd514b7861b6235 became inactive (message send to peer failed)
+Oct 13 19:21:40 datx-tsdb01 etcd[811]: lost the TCP streaming connection with peer 2fd514b7861b6235 (stream MsgApp v2 writer)
+Oct 13 19:21:40 datx-tsdb01 etcd[811]: lost the TCP streaming connection with peer 2fd514b7861b6235 (stream Message writer)
+Oct 13 19:21:45 datx-tsdb01 etcd[811]: failed to reach the peerURL(http://10.0.0.13:2380) of member 2fd514b7861b6235 (Get http://10.0.0.13:2380/version: dial tcp 10.0.0.13:2380: i/o timeout)
+Oct 13 19:21:45 datx-tsdb01 etcd[811]: cannot get the version of member 2fd514b7861b6235 (Get http://10.0.0.13:2380/version: dial tcp 10.0.0.13:2380: i/o timeout)
+Oct 13 19:21:51 datx-tsdb01 etcd[811]: failed to reach the peerURL(http://10.0.0.13:2380) of member 2fd514b7861b6235 (Get http://10.0.0.13:2380/version: dial tcp 10.0.0.13:2380: i/o timeout)
+Oct 13 19:21:51 datx-tsdb01 etcd[811]: cannot get the version of member 2fd514b7861b6235 (Get http://10.0.0.13:2380/version: dial tcp 10.0.0.13:2380: i/o timeout)
+
+# Solution: time sync between servers. Can install ntp on all postgresql servers.

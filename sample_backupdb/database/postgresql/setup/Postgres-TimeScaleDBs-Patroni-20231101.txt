@@ -1,0 +1,510 @@
+# INSTALL POSTGRESQL AND TIMESCALE DB EXTENSION. 
+# Perform on all servers datx-tsdb01, datx-tsdb02, datx-tsdb03.
+
+echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee -a /etc/apt/sources.list.d/pgdg.list
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+
+echo "deb https://packagecloud.io/timescale/timescaledb/ubuntu/ $(lsb_release -c -s) main" | sudo tee /etc/apt/sources.list.d/timescaledb.list
+wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | sudo apt-key add -
+
+sudo apt update -y 
+
+sudo apt install postgresql-14 postgresql-server-dev-14 timescaledb-2-postgresql-14 -y  
+sudo timescaledb-tune --quiet --yes
+
+# INSTALL PATRONI. 
+# Perform on all servers datx-tsdb01, datx-tsdb02, datx-tsdb03. NOTE: patroni cluster can have 2 nodes.
+
+sudo apt -y install python3 python3-pip
+sudo pip3 install --upgrade pip
+sudo pip install --upgrade setuptools
+sudo pip install psycopg2
+sudo pip install patroni
+sudo pip install python-etcd
+
+# Stop and disable postgresql to allow patroni manage the cluster. Perform on all servers datx-tsdb01, datx-tsdb02, datx-tsdb03.
+
+sudo systemctl stop postgresql && sudo systemctl disable postgresql
+sudo ln -s /usr/lib/postgresql/14/bin/* /usr/sbin/  
+
+# Create location to store cluster configs and data. Perform on all servers datx-tsdb01, datx-tsdb02, datx-tsdb03.
+
+sudo mkdir -p /data/patroni
+sudo chown postgres:postgres /data/patroni
+sudo chmod 700 /data/patroni
+cat << EOF | sudo tee -a /etc/hosts
+10.0.0.11	datx-tsdb01
+10.0.0.12	datx-tsdb02
+10.0.0.13	datx-tsdb03
+
+EOF
+
+# CREATE PATRONI SERVICE.
+# Perform on all servers datx-tsdb01, datx-tsdb02, datx-tsdb03.
+# NOTE: when install patroni with pip, the binary is located in /usr/local/bin/patroni. But then install patroni with apt, the binary is located in /usr/bin/patroni
+
+cat << EOF | sudo tee /etc/systemd/system/patroni.service
+[Unit]
+Description=High availability PostgreSQL Cluster
+After=syslog.target network.target
+[Service]
+Type=simple
+User=postgres
+Group=postgres
+ExecStart=/usr/local/bin/patroni /etc/patroni.yml
+KillMode=process
+TimeoutSec=30
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Reload the service and enable patroni with boot.
+
+sudo systemctl daemon-reload
+sudo systemctl enable patroni
+
+# CONFIGURE PATRONI
+# Perform on datx-tsdb01:
+
+cat << EOF | sudo tee /etc/patroni.yml
+scope: postgres
+namespace: /db/
+name: datx-tsdb01
+
+restapi:
+    listen: 10.0.0.11:8008
+    connect_address: 10.0.0.11:8008
+
+etcd:
+    hosts:  10.0.0.11:2379,10.0.0.12:2379,10.0.0.13:2379
+
+bootstrap:
+    dcs:
+        ttl: 30
+        loop_wait: 10
+        retry_timeout: 10
+        maximum_lag_on_failover: 1048576
+        postgresql:
+            use_pg_rewind: true
+            use_slots: true
+            parameters:
+                wal_level: logical
+                enable_partitionwise_aggregate: on
+                jit: off
+                max_prepared_transactions: 150
+                statement_timeout: 0
+                idle_in_transaction_session_timeout: 300000
+                max_connections: 5000
+                shared_preload_libraries: 'timescaledb'        # (change requires restart)
+                shared_buffers: 1987MB
+                effective_cache_size: 5962MB
+                maintenance_work_mem: 1017625kB
+                work_mem: 5088kB
+                timescaledb.max_background_workers: 16
+                max_worker_processes: 23
+                max_parallel_workers_per_gather: 2
+                max_parallel_workers: 4
+                wal_buffers: 16MB
+                min_wal_size: 512MB
+                default_statistics_target: 500
+                random_page_cost: 1.1
+                checkpoint_completion_target: 0.9
+                max_locks_per_transaction: 64
+                autovacuum_max_workers: 10
+                autovacuum_naptime: 10
+                effective_io_concurrency: 256
+                timescaledb.last_tuned: '2023-11-01T18:10:47+07:00'
+                timescaledb.last_tuned_version: '0.14.3'
+    initdb:
+    - encoding: UTF8
+    - data-checksums
+
+    pg_hba:
+    - host replication replicator 127.0.0.1/32 md5
+    - host replication replicator 10.0.0.11/0 md5
+    - host replication replicator 10.0.0.12/0 md5
+    - host replication replicator 10.0.0.13/0 md5
+    - host all all 0.0.0.0/0 md5
+
+    users:
+        admin:
+            password: Mir2SPEujywEp0L7N9jhsAOC
+            options:
+                - createrole
+                - createdb
+
+postgresql:
+    listen: 10.0.0.11:5432
+    connect_address: 10.0.0.11:5432
+    data_dir: /data/patroni
+    pgpass: /tmp/pgpass
+    authentication:
+        replication:
+            username: replicator
+            password: WjBMCibo53fPKgn3ppmYqkwf
+        superuser:
+            username: postgres
+            password: 9fqmWLIDGdkMaSG2XnBiyIY9
+    parameters:
+        unix_socket_directories: '.'
+        shared_preload_libraries: 'timescaledb'
+
+watchdog:
+    mode: required # Allowed values: off, automatic, required
+    device: /dev/watchdog
+    safety_margin: 5
+
+tags:
+    nofailover: false
+    noloadbalance: false
+    clonefrom: false
+    nosync: false
+EOF
+
+
+# Perform on datx-tsdb02
+cat << EOF | sudo tee /etc/patroni.yml
+scope: postgres
+namespace: /db/
+name: datx-tsdb02
+
+restapi:
+    listen: 10.0.0.12:8008
+    connect_address: 10.0.0.12:8008
+
+etcd:
+    hosts:  10.0.0.11:2379,10.0.0.12:2379,10.0.0.13:2379
+
+bootstrap:
+    dcs:
+        ttl: 30
+        loop_wait: 10
+        retry_timeout: 10
+        maximum_lag_on_failover: 1048576
+        postgresql:
+            use_pg_rewind: true
+            use_slots: true
+            parameters:
+                wal_level: logical
+                enable_partitionwise_aggregate: on
+                jit: off
+                max_prepared_transactions: 150
+                statement_timeout: 0
+                idle_in_transaction_session_timeout: 300000
+                max_connections: 5000
+                shared_preload_libraries: 'timescaledb'        # (change requires restart)
+                shared_buffers: 1987MB
+                effective_cache_size: 5962MB
+                maintenance_work_mem: 1017625kB
+                work_mem: 5088kB
+                timescaledb.max_background_workers: 16
+                max_worker_processes: 23
+                max_parallel_workers_per_gather: 2
+                max_parallel_workers: 4
+                wal_buffers: 16MB
+                min_wal_size: 512MB
+                default_statistics_target: 500
+                random_page_cost: 1.1
+                checkpoint_completion_target: 0.9
+                max_locks_per_transaction: 64
+                autovacuum_max_workers: 10
+                autovacuum_naptime: 10
+                effective_io_concurrency: 256
+                timescaledb.last_tuned: '2023-11-01T18:10:47+07:00'
+                timescaledb.last_tuned_version: '0.14.3'
+
+    initdb:
+    - encoding: UTF8
+    - data-checksums
+
+    pg_hba:
+    - host replication replicator 127.0.0.1/32 md5
+    - host replication replicator 10.0.0.11/0 md5
+    - host replication replicator 10.0.0.12/0 md5
+    - host replication replicator 10.0.0.13/0 md5
+    - host all all 0.0.0.0/0 md5
+
+    users:
+        admin:
+            password: Mir2SPEujywEp0L7N9jhsAOC
+            options:
+                - createrole
+                - createdb
+
+postgresql:
+    listen: 10.0.0.12:5432
+    connect_address: 10.0.0.12:5432
+    data_dir: /data/patroni
+    pgpass: /tmp/pgpass
+    authentication:
+        replication:
+            username: replicator
+            password: WjBMCibo53fPKgn3ppmYqkwf
+        superuser:
+            username: postgres
+            password: 9fqmWLIDGdkMaSG2XnBiyIY9
+    parameters:
+        unix_socket_directories: '.'
+        shared_preload_libraries: 'timescaledb'
+
+watchdog:
+    mode: required # Allowed values: off, automatic, required
+    device: /dev/watchdog
+    safety_margin: 5
+
+tags:
+    nofailover: false
+    noloadbalance: false
+    clonefrom: false
+    nosync: false
+EOF
+
+# Perform on datx-tsdb03
+cat << EOF | sudo tee /etc/patroni.yml
+scope: postgres
+namespace: /db/
+name: datx-tsdb03
+
+restapi:
+    listen: 10.0.0.13:8008
+    connect_address: 10.0.0.13:8008
+
+etcd:
+    hosts:  10.0.0.11:2379,10.0.0.12:2379,10.0.0.13:2379
+
+bootstrap:
+    dcs:
+        ttl: 30
+        loop_wait: 10
+        retry_timeout: 10
+        maximum_lag_on_failover: 1048576
+        postgresql:
+            use_pg_rewind: true
+            use_slots: true
+            parameters:
+                wal_level: logical
+                enable_partitionwise_aggregate: on
+                jit: off
+                max_prepared_transactions: 150
+                statement_timeout: 0
+                idle_in_transaction_session_timeout: 300000
+                max_connections: 5000
+                shared_preload_libraries: 'timescaledb'        # (change requires restart)
+                shared_buffers: 1987MB
+                effective_cache_size: 5962MB
+                maintenance_work_mem: 1017625kB
+                work_mem: 5088kB
+                timescaledb.max_background_workers: 16
+                max_worker_processes: 23
+                max_parallel_workers_per_gather: 2
+                max_parallel_workers: 4
+                wal_buffers: 16MB
+                min_wal_size: 512MB
+                default_statistics_target: 500
+                random_page_cost: 1.1
+                checkpoint_completion_target: 0.9
+                max_locks_per_transaction: 64
+                autovacuum_max_workers: 10
+                autovacuum_naptime: 10
+                effective_io_concurrency: 256
+                timescaledb.last_tuned: '2023-11-01T18:10:47+07:00'
+                timescaledb.last_tuned_version: '0.14.3'
+
+    initdb:
+    - encoding: UTF8
+    - data-checksums
+
+    pg_hba:
+    - host replication replicator 127.0.0.1/32 md5
+    - host replication replicator 10.0.0.11/0 md5
+    - host replication replicator 10.0.0.12/0 md5
+    - host replication replicator 10.0.0.13/0 md5
+    - host all all 0.0.0.0/0 md5
+
+    users:
+        admin:
+            password: Mir2SPEujywEp0L7N9jhsAOC
+            options:
+                - createrole
+                - createdb
+
+postgresql:
+    listen: 10.0.0.13:5432
+    connect_address: 10.0.0.13:5432
+    data_dir: /data/patroni
+    pgpass: /tmp/pgpass
+    authentication:
+        replication:
+            username: replicator
+            password: WjBMCibo53fPKgn3ppmYqkwf
+        superuser:
+            username: postgres
+            password: 9fqmWLIDGdkMaSG2XnBiyIY9
+    parameters:
+        unix_socket_directories: '.'
+        shared_preload_libraries: 'timescaledb'
+
+watchdog:
+    mode: required # Allowed values: off, automatic, required
+    device: /dev/watchdog
+    safety_margin: 5
+
+tags:
+    nofailover: false
+    noloadbalance: false
+    clonefrom: false
+    nosync: false
+EOF
+
+# Enable watchdog to prevent split-brain conditions of patroni cluster. This config changes make sure:
+# - Watchdog by default is blacklist. We need to remove it out of blacklist and it can be started with boot.
+# - Watchdog config in /etc/patroni.yml makes sure watchdog has to be started before patroni start. Else patroni will be failed to start.
+sudo modprobe softdog
+sudo chown postgres:postgres /dev/watchdog
+
+sudo sh -c 'echo "softdog" >> /etc/modules'
+sudo sh -c 'echo "KERNEL=="watchdog", OWNER="postgres", GROUP="postgres"" >> /etc/udev/rules.d/61-watchdog.rules'
+sudo sed -i 's/blacklist softdog/#blacklist softdog/g' /lib/modprobe.d/blacklist_linux*
+sudo modprobe softdog
+sudo grep blacklist /lib/modprobe.d/* /etc/modprobe.d/* |grep softdog
+sudo lsmod | grep softdog
+sudo chown postgres:postgres /dev/watchdog*
+
+sudo systemctl restart patroni
+sudo systemctl status patroni
+
+# Add to root crontab to make sure watchdog started before patroni.
+@reboot /usr/sbin/modprobe softdog && /usr/bin/chown postgres:postgres /dev/watchdog && systemctl restart patroni
+
+# TEST
+psql -U postgres -h 10.0.0.11 -p 5432
+
+# At the psql prompt, create an empty database. Our database is called tsdb:
+CREATE database tsdb;
+
+# Connect to the database you created:
+\c tsdb
+
+# Add the TimescaleDB extension:
+CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+
+#Check that the TimescaleDB extension is installed by using the \dx command at the psql prompt. Output is similar to:
+\dx
+
+# Expected Output
+#                                    List of installed extensions
+#    Name     | Version |   Schema   |                            Description
+#-------------+---------+------------+-------------------------------------------------------------------
+# plpgsql     | 1.0     | pg_catalog | PL/pgSQL procedural language
+# timescaledb | 2.7.0   | public     | Enables scalable inserts and complex queries for time-series data
+#(2 rows)
+
+
+
+# Fine-tune the patroni cluster: When CPU and RAM resources of postgresql database server changed, need to fine tune again.
+sudo timescaledb-tune --dry-run >> ~/fine-tune-patroni.conf
+
+# Update the output of above command to the Dynamic configuration of patroni cluster
+
+# (8 vCPU/16 GB RAM per DB server)
+sudo patronictl -c /etc/patroni.yml edit-config
+loop_wait: 10
+maximum_lag_on_failover: 1048576
+postgresql:
+  parameters:
+    effective_cache_size: 11997MB
+    enable_partitionwise_aggregate: true
+    idle_in_transaction_session_timeout: 300000
+    jit: false
+    maintenance_work_mem: 1999MB
+    max_connections: 10000
+    max_locks_per_transaction: 128
+    max_parallel_workers: 8
+    max_parallel_workers_per_gather: 4
+    max_prepared_transactions: 150
+    max_worker_processes: 27
+    shared_buffers: 3999MB
+    shared_preload_libraries: timescaledb
+    statement_timeout: 0
+    timescaledb.last_tuned: '2023-10-06T14:51:30+07:00'
+    timescaledb.last_tuned_version: 0.14.3
+    wal_level: logical
+  use_pg_rewind: true
+retry_timeout: 10
+ttl: 30
+
+# (4 vCPU/8 GB RAM per DB server)
+sudo patronictl -c /etc/patroni.yml edit-config
+loop_wait: 10
+maximum_lag_on_failover: 1048576
+postgresql:
+  parameters:
+    autovacuum_max_workers: 10
+    autovacuum_naptime: 10
+    checkpoint_completion_target: 0.9
+    default_statistics_target: 500
+    effective_cache_size: 5967MB
+    effective_io_concurrency: 256
+    enable_partitionwise_aggregate: true
+    idle_in_transaction_session_timeout: 300000
+    jit: false
+    maintenance_work_mem: 1018524kB
+    max_connections: 5000
+    max_locks_per_transaction: 64
+    max_parallel_workers: 4
+    max_parallel_workers_per_gather: 2
+    max_prepared_transactions: 150
+    max_worker_processes: 23
+    min_wal_size: 512MB
+    random_page_cost: 1.1
+    shared_buffers: 1989MB
+    shared_preload_libraries: timescaledb
+    statement_timeout: 0
+    timescaledb.last_tuned: '2023-11-01T12:32:11+07:00'
+    timescaledb.last_tuned_version: 0.14.3
+    timescaledb.max_background_workers: 16
+    wal_buffers: 16MB
+    wal_level: logical
+    work_mem: 5092kB
+  use_pg_rewind: true
+  use_slots: true
+retry_timeout: 10
+ttl: 30
+
+psql -Upostgres -h 10.0.0.86 -p 5000 -t -c "select inet_server_addr()"
+psql -Upostgres -h 10.0.0.86 -p 6000 -t -c "select inet_server_addr()"
+
+# Error: ConnectionResetError: [Errno 104] Connection reset by peer
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]: 2023-11-01 19:56:10,583 WARNING: Exception happened during processing of request from 10.0.0.15:32877
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]: 2023-11-01 19:56:10,584 WARNING: Traceback (most recent call last):
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/lib/python3.10/socketserver.py", line 683, in process_request_thread
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     self.finish_request(request, client_address)
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/lib/python3.10/socketserver.py", line 360, in finish_request
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     self.RequestHandlerClass(request, client_address, self)
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/local/lib/python3.10/dist-packages/patroni/api.py", line 105, in _init_
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     super(RestApiHandler, self).__init__(request, client_address, server)
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/lib/python3.10/socketserver.py", line 747, in _init_
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     self.handle()
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/lib/python3.10/http/server.py", line 433, in handle
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     self.handle_one_request()
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/local/lib/python3.10/dist-packages/patroni/api.py", line 1338, in handle_one_request
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     BaseHTTPRequestHandler.handle_one_request(self)
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/lib/python3.10/http/server.py", line 421, in handle_one_request
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     method()
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/local/lib/python3.10/dist-packages/patroni/api.py", line 372, in do_GET
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     self._write_status_response(status_code, response)
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/local/lib/python3.10/dist-packages/patroni/api.py", line 218, in _write_status_response
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     self._write_json_response(status_code, response)
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/local/lib/python3.10/dist-packages/patroni/api.py", line 167, in _write_json_response
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     self.write_response(status_code, json.dumps(response, default=str), content_type='application/json')
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/local/lib/python3.10/dist-packages/patroni/api.py", line 157, in write_response
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     self.wfile.write(body.encode('utf-8'))
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:   File "/usr/lib/python3.10/socketserver.py", line 826, in write
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]:     self._sock.sendall(b)
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]: ConnectionResetError: [Errno 104] Connection reset by peer
+Nov 01 19:56:10 datx-tsdb02 patroni[6989]: 2023-11-01 19:56:10,636 INFO: no action. I am (datx-tsdb02), a secondary, and following a leader (datx-tsdb03)
+
+# Solution:
+# Set Healthcheck on Load Balancer: HTTP Method = OPTIONS.

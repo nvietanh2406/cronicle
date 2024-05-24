@@ -1,0 +1,68 @@
+1. Create user:
+
+CREATE USER 'exporter'@'%' IDENTIFIED BY 'MKZz9xkh39@DwTJ2rIVBI' WITH MAX_USER_CONNECTIONS 3;
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'%';
+
+2. Create my.cnf file
+sudo tee /etc/.mysqld_exporter.cnf <<EOF
+[client]
+user=exporter
+password='MKZz9xkh39@DwTJ2rIVBI'
+EOF
+
+3. Setup exporter
+ver="0.15.0"
+wget https://github.com/prometheus/mysqld_exporter/releases/download/v${ver}/mysqld_exporter-${ver}.linux-amd64.tar.gz
+tar -xvf mysqld_exporter-${ver}.linux-amd64.tar.gz
+sudo mv mysqld_exporter-${ver}.linux-amd64/mysqld_exporter /usr/local/bin/mysqld_exporter
+sudo chmod +x /usr/local/bin/mysqld_exporter
+sudo rm mysqld_exporter-* -rf
+
+sudo tee /etc/systemd/system/mysqld_exporter.service <<EOF
+[Unit]
+Description=Prometheus exporter for MySQL Database
+Documentation=https://github.com/prometheus/mysqld_exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+SyslogIdentifier=mysqld_exporter
+ExecStart=/usr/local/bin/mysqld_exporter \
+--config.my-cnf /etc/.mysqld_exporter.cnf \
+--collect.global_status \
+--collect.info_schema.innodb_metrics \
+--collect.auto_increment.columns \
+--collect.info_schema.processlist \
+--collect.binlog_size \
+--collect.info_schema.tablestats \
+--collect.global_variables \
+--collect.info_schema.query_response_time \
+--collect.info_schema.userstats \
+--collect.info_schema.tables \
+--collect.perf_schema.tablelocks \
+--collect.perf_schema.file_events \
+--collect.perf_schema.eventswaits \
+--collect.perf_schema.indexiowaits \
+--collect.perf_schema.tableiowaits \
+--collect.slave_status \
+--web.listen-address=0.0.0.0:9104 \
+--mysqld.address="192.168.0.12:3306"
+ExecReload=/bin/kill -HUP $MAINPID
+LimitNOFILE=500000
+LimitNPROC=500000
+SuccessExitStatus=143
+TimeoutStopSec=60
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+systemctl restart mysqld_exporter.service
+
+sudo systemctl enable mysqld_exporter.service --now
+#enable fw
+sudo ufw allow 9104/tcp

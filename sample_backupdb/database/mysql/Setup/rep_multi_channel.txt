@@ -1,0 +1,86 @@
+# on 203.101.225.212
+$ mysql -u root -p
+
+CREATE USER 'replica_channel'@'136.186.108.210' IDENTIFIED WITH mysql_native_password BY 'd3zvNm9WiqU@5QAxDHbnRAuhp';
+GRANT REPLICATION SLAVE ON *.* TO 'replica_channel'@'136.186.108.210';
+FLUSH PRIVILEGES;
+
+
+mysqldump -u root -p --databases demo_replica01 featureEngineeringDb marketDb marketHistDb portfolioDataDb portfolioDb portfolioHistDb portfolioPerformanceDb portfolioSumDb portfolioSumForAppDb portfolioTransactionDb ratingDb testdb testreplica1 tplusdb |gzip > $(date +"%Y%m%d")-gt-sv5-2.sql.gz
+
+# on 136.186.108.210
+rsync -avzP hung.le@203.101.225.212:~/$(date +"%Y%m%d")-gt-sv5-2.sql.gz ./
+gzip -d $(date +"%Y%m%d")-gt-sv5-2.sql.gz
+
+$ mysql -u root -p
+
+create database demo_replica01;
+create database featureEngineeringDb;
+create database marketDb;
+create database marketHistDb;
+create database portfolioDataDb;
+create database portfolioDb;
+create database portfolioHistDb;
+create database portfolioPerformanceDb;
+create database portfolioSumDb;
+create database portfolioSumForAppDb;
+create database portfolioTransactionDb;
+create database ratingDb;
+create database testdb;
+create database testreplica1;
+create database tplusdb;
+
+mysql -u root -p < $(date +"%Y%m%d")-gt-sv5-2.sql
+
+
+# on 136.186.108.141
+$ mysql -u root -p
+
+CREATE USER 'replica_channel'@'136.186.108.210' IDENTIFIED WITH mysql_native_password BY 'd3zvNm9WiqU@5QAxDHbnRAuhp';
+GRANT REPLICATION SLAVE ON *.* TO 'replica_channel'@'136.186.108.210';
+FLUSH PRIVILEGES;
+
+mysqldump -u root -p --databases  indexDb ratingDailyDb ratingHistDb ratingTrendDailyDb sectorDb |gzip > $(date +"%Y%m%d")-appending.sql.gz
+
+# on 136.186.108.210
+rsync -avzP hung.le@136.186.108.141:~/$(date +"%Y%m%d")-appending.sql.gz ./
+gzip -d $(date +"%Y%m%d")-appending.sql.gz
+
+$ mysql -u root -p
+
+create database indexDb;
+create database ratingDailyDb;
+create database ratingHistDb;
+create database ratingTrendDailyDb;
+create database sectorDb;
+
+mysql -u root -p < $(date +"%Y%m%d")-appending.sql
+
+II. Config channel replicate:
+
+# on 203.101.225.212
+
+$ mysql -u root -p
+
+show master status\G
+
+# on 136.186.108.210
+$ mysql -u root -p
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='203.101.225.212', SOURCE_USER='replica_channel', SOURCE_PASSWORD='d3zvNm9WiqU@5QAxDHbnRAuhp', SOURCE_LOG_FILE='mysql-bin.000492', SOURCE_LOG_POS=923 FOR CHANNEL 'db-rating01';
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE = ('demo_replica01.%','featureEngineeringDb.%','marketDb.%','marketHistDb.%','portfolioDataDb.%','portfolioDb.%','portfolioHistDb.%','portfolioPerformanceDb.%','portfolioSumDb.%','portfolioSumForAppDb.%','portfolioTransactionDb.%','ratingDb.%','testdb.%','testreplica1.%','tplusdb.%') FOR CHANNEL 'db-rating01';
+START REPLICA FOR CHANNEL "db-rating01";
+SHOW REPLICA STATUS FOR CHANNEL "db-rating01"\G
+
+# on 136.186.108.141
+$ mysql -u root -p
+
+show master status\G
+
+# on 136.186.108.210
+$ mysql -u root -p
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='136.186.108.141', SOURCE_USER='replica_channel', SOURCE_PASSWORD='d3zvNm9WiqU@5QAxDHbnRAuhp', SOURCE_LOG_FILE='mysql-bin.000020', SOURCE_LOG_POS=457909299 FOR CHANNEL 'db-appending01';
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE = ('indexDb.%','ratingDailyDb.%','ratingHistDb.%','ratingTrendDailyDb.%','sectorDb.%') FOR CHANNEL 'db-appending01';
+START REPLICA FOR CHANNEL "db-appending01";
+SHOW REPLICA STATUS FOR CHANNEL "db-appending01"\G

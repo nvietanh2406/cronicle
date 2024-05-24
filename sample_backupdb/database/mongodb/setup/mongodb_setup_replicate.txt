@@ -1,0 +1,122 @@
+I. Pre-Installation Requirements
+1. Reference
+https://linux.how2shout.com/how-to-start-using-mongodb-6-0-in-ubuntu-20-04-lts/
+https://www.digitalocean.com/community/tutorials/how-to-configure-a-mongodb-replica-set-on-ubuntu-20-04
+
+2. Server Information
+192.168.12.21   Primary Member
+192.168.12.11   Secondary Member
+192.168.12.41   Secondary Member
+
+3 Open Firewall
+# on all servers
+sudo ufw allow from 192.168.12.0/24
+
+4 Disable IPv6
+vim /etc/sysctl.conf
+============
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv6.conf.default.disable_ipv6=1
+net.ipv6.conf.lo.disable_ipv6 = 1
+============
+sysctl -p
+
+II. Install mongodb 6.0
+1. Update && upgrade
+sudo apt update && sudo apt upgrade
+
+2. Add MongoDB Repository on Ubuntu 20.04
+sudo echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+
+3. Integrate the MongoDB GPG key
+curl -sSL https://www.mongodb.org/static/pgp/server-6.0.asc  -o mongoserver.asc
+gpg --no-default-keyring --keyring ./mongo_key_temp.gpg --import ./mongoserver.asc
+gpg --no-default-keyring --keyring ./mongo_key_temp.gpg --export > ./mongoserver_key.gpg
+sudo mv mongoserver_key.gpg /etc/apt/trusted.gpg.d/
+
+4. Update repo
+sudo apt update
+
+5. Install MongoDB 6.0 on Ubuntu 20.04
+sudo apt install mongodb-org
+# Install with 1 version:
+sudo apt-get install -y mongodb-org=6.0.4 mongodb-org-database=6.0.4 mongodb-org-server=6.0.4 mongodb-mongosh=1.6.2 mongodb-org-mongos=6.0.4 mongodb-org-tools=6.0.4
+
+6. Start and Enable the MongoDB service
+sudo systemctl enable --now mongod
+sudo systemctl status mongod
+
+7. Create root user:
+# on Primary server 192.168.12.21
+
+$ mongo
+
+use admin
+
+db.createUser({
+    user:"mongo-root",
+    pwd:"w2tWZe3HKJHcgxLLQoudnp4d",
+    roles:[{role:"root",db:"admin"}],
+    passwordDigestor:"server"
+})
+
+#test login:
+
+mongo -u mongo-root -p --authenticationDatabase admin
+
+8. Create a key file for mongodb
+# on Primary server 192.168.12.21
+openssl rand -base64 756 > /opt/mongo-keyfile
+chmod 400 /opt/mongo-keyfile
+chown mongodb:mongodb /opt/mongo-keyfile
+
+#Copy mongo-keyfile to these Secondary node:
+
+III. Configure a MongoDB Replica Set
+1. Configuring DNS Resolution
+# on all servers
+
+vim /etc/hosts
+=================
+192.168.12.21   mongo0.replset.dev
+192.168.12.11   mongo1.replset.dev
+192.168.12.41   mongo2.replset.dev
+#note: add to first line of hosts file
+
+2. Update configure
+# on all servers
+
+vim /etc/mongod.conf
+
+==============
+
+net: 
+    port: 27017 
+    bindIp: 0.0.0.0
+security: 
+    keyFile: /opt/mongo-keyfile 
+replication: 
+    replSetName: "rsdev01"
+
+3. Configuration Replicate set
+# on primary server 192.168.12.21
+mongo -u mongo-root -p --authenticationDatabase admin
+# Create primary node
+> rs.initiate()
+{
+  "info2": "no configuration specified. Using a default configuration for the set",
+  "me": "mongo0.replset.dev",
+  "ok": 1
+}
+
+#add secondary node
+rs.add("192.168.12.11")
+rs.add("192.168.12.41")
+
+4. Change hostname to IPs
+# on primary server 192.168.12.21
+mongo -u mongo-root -p --authenticationDatabase admin
+
+cfg = rs.conf()
+cfg.members[0].host = "192.168.12.21"
+rs.reconfig(cfg)

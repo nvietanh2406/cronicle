@@ -1,0 +1,29 @@
+# 1. Login vào 1 trong các servers mongo02, 03 hoặc 04 (192.168.0.22 - 192.168.0.24). Nhưng tốt nhất là login vào primary server để đề phòng trường hợp cần restore DB.
+
+# 2. Tạo thư mục backup và đăng nhập thư mục.
+mkdir $(date +"%Y%m%d") && cd $(date +"%Y%m%d")
+
+# 3. Backup database cần thiết. Ví dụ đối với các deployment của SDC, các db dưới đây đã từng cần backup:
+mongodump -u BackupUser --authenticationDatabase=admin --db=datx_portfolio_v2 -o ./ 
+mongodump -u BackupUser --authenticationDatabase=admin --db=order_manage -o ./ 
+mongodump -u BackupUser --authenticationDatabase=admin --db=sales_portal -o ./ 
+
+# 4. Hoặc trong trường hợp chỉ cần backup 1 collection:
+cd $(date +"%Y%m%d")
+mongodump -u BackupUser --authenticationDatabase=admin --db=datx_portfolio_v2 -c  users -o ./ 
+
+# 5. Nếu cần phải rollback/restore DB đã backup. Lưu ý: Nếu restore, cần login vào Primary server.
+cd $(date +"%Y%m%d")
+mongorestore -u BackupUser --authenticationDatabase=admin --db datx_portfolio_v2  --drop datx_portfolio_v2/
+mongorestore -u BackupUser --authenticationDatabase=admin --db order_manage  --drop order_manage/
+mongorestore -u BackupUser --authenticationDatabase=admin --db sales_portal  --drop sales_portal/
+
+# 6. Trong trường hợp chỉ cần restore 1 collection:
+cd $(date +"%Y%m%d")
+mongorestore -u BackupUser --authenticationDatabase=admin --db datx_portfolio_v2 --collection users --drop datx_portfolio_v2/users.bson
+
+
+# Thông tin account dùng để backup:
+BackupUser/DjL5hvJ5VCpLodkhtJWTRL5FruC2SCvM
+
+

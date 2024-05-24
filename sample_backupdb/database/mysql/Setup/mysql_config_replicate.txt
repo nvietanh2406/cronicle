@@ -1,0 +1,31 @@
+Default setup cho mysql
+
+
+bind-address = 136.186.108.82
+max_connections = 100000
+connect_timeout = 10
+delayed_insert_timeout = 300
+innodb_lock_wait_timeout = 50
+lock_wait_timeout = 30
+net_read_timeout = 10
+net_write_timeout = 30
+wait_timeout = 30
+interactive_timeout = 30
+innodb_rollback_on_timeout = ON
+open_files_limit = 10000
+# replica config
+server-id = 8
+log_bin = /var/log/mysql/mysql-bin.log
+binlog_expire_logs_seconds = 432000
+max_binlog_size = 500M
+log_bin_index = /var/log/mysql/mysql-bin.log.index
+relay_log = /var/log/mysql/mysql-relay-bin
+relay_log_index = /var/log/mysql/mysql-relay-bin.index
+expire_logs_days = 1 
+relay_log_space_limit = 4000000000
+auto-increment-offset = 3
+replicate-ignore-db = mysql
+replicate-ignore-db = information_schema
+replicate-ignore-db = performance_schema
+slave-skip-errors = all
+log-slave-updates = ON

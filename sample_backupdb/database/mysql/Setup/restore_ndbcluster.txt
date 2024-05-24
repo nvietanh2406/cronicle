@@ -1,0 +1,105 @@
+# on 192.168.0.52
+mysqldump -u ubuntu -p --databases dataDb etfDb financeDb financialDb macroEconomicDb marketDb marketHistDb mediaContentDb phaisinhTakingProfitDb ratingDb rebalanceTempDb sectorTempDb tplusDb |gzip > $(date +"%Y%m%d")-rtg02.sql.gz
+ubuntu / Invoice@2019
+
+rsync -avzP $(date +"%Y%m%d")-rtg02.sql.gz hung.le@10.0.200.14:~
+
+# on 10.0.200.14
+gzip -d $(date +"%Y%m%d")-rtg02.sql.gz
+
+mysql -u root -p 
+
+create database dataDb;
+create database etfDb;
+create database financeDb;
+create database financialDb;
+create database macroEconomicDb;
+create database marketDb;
+create database marketHistDb;
+create database mediaContentDb;
+create database phaisinhTakingProfitDb;
+create database ratingDb;
+create database rebalanceTempDb;
+create database sectorTempDb;
+create database tplusDb;
+
+mysql -u root -p < $(date +"%Y%m%d")-rtg02.sql
+
+# on 192.168.0.54
+
+mysqldump -u ubuntu -p --databases errorLogDb indexDb phaisinhDb ratingDailyDb ratingHistDb ratingTrendDailyDb sectorDb tudoanh |gzip > $(date +"%Y%m%d")-rtg04.sql.gz
+ubuntu / Invoice@2019
+
+rsync -avzP $(date +"%Y%m%d")-rtg04.sql.gz hung.le@10.0.200.14:~
+
+# on 10.0.200.14
+gzip -d $(date +"%Y%m%d")-rtg04.sql.gz
+
+mysql -u root -p 
+
+create database errorLogDb;
+create database indexDb;
+create database phaisinhDb;
+create database ratingDailyDb;
+create database ratingHistDb;
+create database ratingTrendDailyDb;
+create database sectorDb;
+create database tudoanh;
+
+mysql -u root -p < $(date +"%Y%m%d")-rtg04.sql
+
+# on 192.168.0.32
+
+mysqldump -u ubuntu -p --databases brokerOrderDb brokerSummaryDb brokerTransactionDb hsxApp logDb orderDb orderDbDev orderLogsDb phaisinhOrderDb phaisinhPortfolioPerformanceDb phaisinhPortfolioSumDb phaisinhPortfolioSumForAppDb phaisinhPortfolioTransactionDb portfolioDataDb portfolioOrderDb portfolioPerformanceDb portfolioPerformanceHistDb portfolioRightDividendDb portfolioSumDb portfolioSumForAppDb portfolioTransactionDb recommendationDb runningLogsDb transactionDb webDataDb xwealthDb  |gzip > $(date +"%Y%m%d")-pfm02.sql.gz
+ubuntu / Invoice@2019
+
+rsync -avzP $(date +"%Y%m%d")-pfm02.sql.gz hung.le@10.0.200.14:~
+
+# on 10.0.200.14
+gzip -d $(date +"%Y%m%d")-pfm02.sql.gz
+
+create database brokerOrderDb;
+create database brokerSummaryDb;
+create database brokerTransactionDb;
+create database hsxApp;
+create database logDb;
+create database orderDb;
+create database orderDbDev;
+create database orderLogsDb;
+create database phaisinhOrderDb;
+create database phaisinhPortfolioPerformanceDb;
+create database phaisinhPortfolioSumDb;
+create database phaisinhPortfolioSumForAppDb;
+create database phaisinhPortfolioTransactionDb;
+create database portfolioDataDb;
+create database  portfolioOrderDb;
+create database  portfolioPerformanceDb;
+create database portfolioPerformanceHistDb;
+create database portfolioRightDividendDb;
+create database portfolioSumDb;
+create database  portfolioSumForAppDb;
+create database portfolioTransactionDb;
+create database recommendationDb;
+create database runningLogsDb;
+create database transactionDb;
+create database webDataDb;
+create database xwealthDb;
+
+mysql -u root -p < $(date +"%Y%m%d")-pfm02.sql
+
+# on 192.168.0.42
+
+mysqldump -u ubuntu -p --databases  hsx hsxApp hsxIntraday hsxIntradayHist rebalanceTempDb |gzip > $(date +"%Y%m%d")-stk02.sql.gz
+ubuntu / Invoice@2019
+
+rsync -avzP $(date +"%Y%m%d")-stk02.sql.gz hung.le@10.0.200.14:~
+# on 10.0.200.14
+gzip -d $(date +"%Y%m%d")-stk02.sql.gz
+
+create database hsx;
+create database hsxApp;
+create database hsxIntraday;
+create database hsxIntradayHist;
+create database rebalanceTempDb;
+
+mysql -u root -p < $(date +"%Y%m%d")-stk02.sql

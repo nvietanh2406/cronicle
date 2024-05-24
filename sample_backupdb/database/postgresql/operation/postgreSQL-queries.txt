@@ -1,0 +1,109 @@
+# CREATE USER AND GRANT ACCESS
+NOTE: Create users need to follow the order.
+
+# 1. Create users read-only and write for a specific db
+CREATE USER data_write WITH PASSWORD 'qxKJmiwFP9KZkLzEYM9DAvjSk7dhNMct';
+CREATE USER data_read WITH PASSWORD 'Yy5QSwhwbojWX9JxvjFWZysSCyUTMpn7';
+
+# 2. Grant all privileges the write user on a specific db:
+create database datadb ;
+\c datadb 
+GRANT CONNECT ON DATABASE datadb  TO data_write;
+GRANT USAGE ON SCHEMA public TO data_write;
+GRANT CREATE ON DATABASE datadb  TO data_write;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO data_write;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO data_write;
+
+# 3. Create a read-only user for a specific db HAVE TO USE the write user mkt_data_write
+psql -h 10.0.0.86 -p 6000 -U data_write -d data
+
+GRANT CONNECT ON DATABASE datadb  TO data_read;
+GRANT USAGE ON SCHEMA public TO data_read;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO data_read;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO data_read;
+
+# Create a new schema
+create database trading_monitor ;
+\c trading_monitor 
+CREATE SCHEMA IF NOT EXISTS autotrading_monitor AUTHORIZATION data_write;
+GRANT CONNECT ON DATABASE trading_monitor  TO data_write;
+GRANT USAGE ON SCHEMA autotrading_monitor TO data_write;
+GRANT CREATE ON DATABASE trading_monitor  TO data_write;
+ALTER DEFAULT PRIVILEGES IN SCHEMA autotrading_monitor GRANT ALL PRIVILEGES ON TABLES TO data_write;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO data_write;
+
+
+\dg
+
+# show databases to list all databases: 
+\list 
+# or 
+\l 
+SELECT datname FROM pg_database WHERE datistemplate = false; 
+
+
+# show tables of a db. 
+\connect database_name 
+# or 
+\c database_name 
+
+\dt 
+\dt schema_name.* 
+# or 
+\dt *.* 
+or
+SELECT table_schema,table_name FROM information_schema.tables ORDER BY table_schema,table_name; 
+
+# CREATE TABLE
+# To create a sample table
+CREATE TABLE test (
+id integer,
+name text,
+price numeric,
+category text
+);
+
+INSERT INTO test (id, name, price, category) VALUES (1, 'Laptop', 999.99, 'Electronics');
+INSERT INTO test (id, name, price, category) VALUES (2, 'Book', 19.99, 'Books');
+INSERT INTO test (id, name, price, category) VALUES (3, 'Coffee', 4.99, 'Beverages');
+
+SELECT * FROM test;
+
+
+CREATE TABLE customers (
+id integer,
+name text,
+email text
+);
+INSERT INTO customers (id, name, email) VALUES (1, 'Bang', 'bang@gmail');
+INSERT INTO customers (id, name, email) VALUES (2, 'Hoan', 'hoan@gmai');
+INSERT INTO customers (id, name, email) VALUES (3, 'Thien','thien@gmail');
+INSERT INTO customers (id, name, email) VALUES (3, 'Hung','hung@gmail');
+
+
+# DROP TABLE
+# remove the table and all of its data.
+DROP TABLE table_name;
+
+# drop the table only if it exists, and not throw an error if it doesn't.
+DROP TABLE IF EXISTS table_name;
+
+# drop the table and any objects that depend on it such as views, constraints, etc.
+DROP TABLE table_name CASCADE;
+
+# This will first prompt you to confirm the action.
+DROP TABLE IF EXISTS table_name;
+
+# drop all tables in a schema: drop all tables within the specified schema and all dependent objects.
+DROP SCHEMA schema_name CASCADE;
+
+# Check tables that a user can access:
+SELECT * FROM information_schema.role_table_grants WHERE grantee = 'data_read';
+SELECT * FROM information_schema.role_table_grants WHERE grantee = 'data_write';
+
+# To check the schemas that a PostgreSQL user can access, you can use the following SQL query:
+
+SELECT nspname AS schema_name 
+FROM pg_catalog.pg_namespace n
+JOIN pg_catalog.pg_roles r ON r.oid = n.nspowner
+WHERE r.rolname = 'data_write';
