@@ -9,6 +9,7 @@ hostname="datx-db01"
 remote_backup_ip="192.168.0.110"
 env="Production"
 db_type="MySQL"
+dbname="--all-databases"
 local_backup_path="/data/backup/mysql"
 discord_error_webhook="https://discordapp.com/api/webhooks/1199528077328384020/F_9iGgoF_a5VeE5F5UHJO8NtiL-ib-2u6N3HgHKlyDLYKAk6MNN5T-XuEjgzQxqw-m26"
 discord_ok_webhook="https://discord.com/api/webhooks/1136571040013750423/1IgNHredddX5aH2t2e_TbQfH98b1esOhuGNyTga2oDE0JICLU_tEEPifec_O_aJVx3bG"
@@ -21,6 +22,9 @@ backup_user="mysqlbackup"
 backup_pass="3mTavkJ3W5Z&QR~W~Duy#rVW"
 log_dir="/var/log/backup"
 log_file="$log_dir/backup-mysqldb.log"
+
+
+
 
 # Declaration function
 log() {
@@ -41,6 +45,26 @@ die() {
 
 #OK: 2021216
 #NOK: 14177041
+
+# Seting database need backup
+
+ARGV="$@"
+
+if [ "x$ARGV" = "x" ]; then
+    ARGS="--all-databases"
+else
+    ARGS=""
+    for ARG in "$@"; do
+        if [ "$ARG" = "--databases" ]; then
+            ARGS="$ARGS $ARG"
+        else
+            ARGS="$ARGS $ARG"
+        fi
+    done
+fi
+dbname=$ARGS
+echo "$dbname"
+log "$dbname"
 
 function generate_post_data {
     cat <<EOF
@@ -104,7 +128,7 @@ log "Started backup"
 mkdir -p ${local_backup_path} ${log_dir}
 
 # Create a backup
-if mysqldump -h"${server_ip}"  -u"${backup_user}" -p"${backup_pass}" --all-databases |gzip > "${backup_file}"
+if mysqldump -h"${server_ip}"  -u"${backup_user}" -p"${backup_pass}" "${dbname}" |gzip > "${backup_file}"
 then
   backup_file_size=$(wc -c "${backup_file}"| awk '{ print $1}')
   if [[ ${backup_file_size} -lt ${file_size_min} ]]
