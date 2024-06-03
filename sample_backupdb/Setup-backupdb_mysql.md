@@ -1,6 +1,10 @@
 # I. Config and setup backup database with cronicle
-
-## Copy server ssh-key
+```shell
+    cd /opt/ &&
+    git clone https://github.com/nvietanh2406/cronicle.git &&
+    mkdir -p /opt/backup/adhoc /opt/backup/checkdb
+```
+## setup server ssh-key
 ```shell
 rm /home/datxbackup/.ssh -rf
 sudo useradd -m 'datxbackup' -s /bin/bash
@@ -53,6 +57,7 @@ mysql -u"datadm" -p"5f0D4e60-5bac-4927-b17d-2a8bc1ae4733" -h 10.48.15.130  -e "c
     mkdir -p /opt/backup/adhoc/$server_ip/
     rm -f /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh 
     cp "/opt/backup/backup-mysqldb.sh" "/opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh"
+    
     sed -i 's/server_ip="192.168.0.11"/server_ip="'$server_ip'"/g' /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh
     sed -i 's/hostname="datx-db01"/hostname="'$hostname'"/g' /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh
     sed -i 's/env="Production"/env="'$env'"/g' /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh
@@ -84,7 +89,7 @@ ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no datxbackup@tpc-m
 
  
 ```
-# IV. check db before store
+# IV. check db before store MYSQL
 ## setup server check (cron) get git repo
 ```shell
     cd /opt/ &&

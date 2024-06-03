@@ -11,7 +11,6 @@ temp_file=$(mktemp)
 cat << EOF > "$temp_file"
 SELECT @@hostname AS Server, COUNT(*) AS TotalDatabases
 FROM INFORMATION_SCHEMA.SCHEMATA;
-
 SELECT '----------------------------', NULL;
 
 SELECT
@@ -21,7 +20,6 @@ FROM
 INFORMATION_SCHEMA.TABLES
 GROUP BY
 TABLE_SCHEMA;
-
 SELECT '----------------------------', NULL;
 
 SET @randomDb = (SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY RAND() LIMIT 1);
@@ -30,6 +28,7 @@ FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA = @randomDb
 ORDER BY RAND()
 LIMIT 10;
+
 EOF
 
 # Thực thi câu lệnh SQL và lưu kết quả vào file result.txt
