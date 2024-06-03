@@ -74,13 +74,89 @@ mysql -u"datadm" -p"5f0D4e60-5bac-4927-b17d-2a8bc1ae4733" -h 10.48.15.130  -e "c
 ```shell
     su datxbackup && /opt/backup/mysql
 
-    
-    
 ```
 ### add manual cronicle even
 ```shell
 ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no datxbackup@tpc-mysql-dev02 "/usr/bin/bash /opt/backup/mysql/backup-adhoc-mysqldb.sh >> /var/log/backup/backup-mysqldb-cronjob.log 2>&1"
 
 ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no datxbackup@tpc-mysql-dev02 "tail /var/log/backup/backup-mysqldb-cronjob.log"
+
+
  
+```
+# IV. check db before store
+## setup server check (cron) get git repo
+```shell
+    cd /opt/ &&
+    git clone https://github.com/nvietanh2406/cronicle.git &&
+    mkdir -p /opt/backup/adhoc /opt/backup/checkdb
+    
+```
+## setup even with bash plugin 
+Before running, make sure to have the ssh key and update the hosts file
+Copy and paste in Plugin shell in cronicle
+```shell
+# nơi khai báo ip srv and des
+set -x
+srv_server_ip="10.48.15.131"
+srv_hostname="tpc-mysql-dev02"
+des_server_ip="10.48.15.131"
+des_hostname="tpc-mysql-dev02"
+```
+### SOURCE
+```shell
+    # tạo file runcheck for source
+    rm -f /opt/backup/adhoc/$srv_server_ip/run_check.sh 
+    cp "/opt/cronicle/sample_backupdb/run_check.sh" "/opt/backup/adhoc/$srv_server_ip/run_check.sh"
+    mkdir -p /opt/backup/checkdb/$srv_server_ip/
+
+    cp "/opt/backup/run_check.sh" "/opt/backup/adhoc/$srv_server_ip/run_check.sh"
+
+    # thay đổi thông tin ip srv source
+    sed -i 's/server_ip="10.48.15.131"/server_ip="'$srv_server_ip'"/g' /opt/backup/adhoc/$srv_server_ip/run_check.sh
+    
+    sed -i 's/result.txt/srv_result.txt/g' /opt/backup/adhoc/$srv_server_ip/run_check.sh
+    
+    # copy file sửa này tơi srv sourve
+
+    time rsync -avzP -e "ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no" /opt/backup/adhoc/$srv_server_ip/run_check.sh datxbackup@$srv_hostname:/opt/backup/mysql/
+    
+
+    # run file check source 
+    ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no datxbackup@$srv_hostname "/usr/bin/bash /opt/backup/mysql/run_check.sh"
+
+    # get kết quả về tập trung
+
+    time rsync -avzP -e "ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no" datxbackup@$srv_hostname:/opt/backup/mysql/srv_result.txt /opt/backup/checkdb/$srv_server_ip/
+
+    cat /opt/backup/checkdb/$srv_server_ip/srv_result.txt
+```
+
+### destination
+```shell
+    # tạo file runcheck for destination
+    rm -f /opt/backup/adhoc/$des_server_ip/run_check.sh 
+    cp "/opt/cronicle/sample_backupdb/run_check.sh" "/opt/backup/adhoc/$des_server_ip/run_check.sh"
+    mkdir -p /opt/backup/checkdb/$des_server_ip/
+
+    cp "/opt/backup/run_check.sh" "/opt/backup/adhoc/$des_server_ip/run_check.sh"
+
+    # thay đổi thông tin ip srv destination
+    sed -i 's/server_ip="10.48.15.131"/server_ip="'$des_server_ip'"/g' /opt/backup/adhoc/$des_server_ip/run_check.sh
+    
+    sed -i 's/result.txt/des_result.txt/g' /opt/backup/adhoc/$des_server_ip/run_check.sh
+    
+    # copy file sửa này tơi srv sourve
+
+    time rsync -avzP -e "ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no" /opt/backup/adhoc/$des_server_ip/run_check.sh datxbackup@$srv_hostname:/opt/backup/mysql/
+    
+
+    # run file check destination 
+    ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no datxbackup@$srv_hostname "/usr/bin/bash /opt/backup/mysql/run_check.sh"
+
+    # get kết quả về tập trung
+
+    time rsync -avzP -e "ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no" datxbackup@$srv_hostname:/opt/backup/mysql/des_result.txt /opt/backup/checkdb/$des_server_ip/
+
+    cat /opt/backup/checkdb/$des_server_ip/des_result.txt
 ```

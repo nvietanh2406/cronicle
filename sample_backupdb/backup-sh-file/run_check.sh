@@ -33,7 +33,7 @@ LIMIT 10;
 EOF
 
 # Thực thi câu lệnh SQL và lưu kết quả vào file result.txt
-mysql -h"$server_ip" -u"$backup_user" -p"$backup_pass" < "$temp_file" > result.txt
+mysql -h"$server_ip" -u"$backup_user" -p"$backup_pass" < "$temp_file" > /opt/backup/mysql/result.txt
 
 # Xóa file tạm thời
 rm "$temp_file"
