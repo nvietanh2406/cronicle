@@ -20,6 +20,7 @@ backup_user="mysqlbackup"
 backup_pass="3mTavkJ3W5Z&QR~W~Duy#rVW"
 log_dir="/var/log/backup"
 log_file="$log_dir/backup-mysqldb.log"
+dbname=""
 
 # Declaration function
 log() {
@@ -47,7 +48,7 @@ ARGV="$@"
  if [ "x$ARGV" = "x" ] ; then 
      ARGS="--all-databases"
      else
-     ARGS=$ARGV
+     ARGS="--databases $ARGV"
  fi
 dbname=$ARGS
 echo $dbname
@@ -115,7 +116,7 @@ log "Started backup"
 mkdir -p ${local_backup_path} ${log_dir}
 
 # Create a backup
-if mysqldump -h"${server_ip}"  -u"${backup_user}" -p"${backup_pass}" --all-databases |gzip > "${backup_file}"
+if mysqldump -h"${server_ip}"  -u"${backup_user}" -p "${backup_pass}" --all-databases |gzip > "${backup_file}"
 then
   backup_file_size=$(wc -c "${backup_file}"| awk '{ print $1}')
   if [[ ${backup_file_size} -lt ${file_size_min} ]]

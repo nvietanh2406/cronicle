@@ -23,6 +23,8 @@ ssh-add /home/datxbackup/.ssh/id_rsa
 ## add host to server ssh-key
 ```shell
 echo '10.48.15.131    tpc-mysql-dev02'| sudo tee -a /etc/hosts
+#example
+echo '192.168.0.11   datx-db01'| sudo tee -a /etc/hosts
 ```
 ## Copy client ssh-key
 
@@ -66,12 +68,14 @@ mysql -u"datadm" -p"5f0D4e60-5bac-4927-b17d-2a8bc1ae4733" -h 10.48.15.130  -e "c
     #sed -i 's/"if rsync -avz $local_backup_path $remote_backup_pat"/"echo "backup addhoc for golive""/g' /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh
     #sed -i 's/"Local backup file sended"/"Backup addhoc for golive"/g' /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh
     
+    sed -i 's/mysqldump -h"${server_ip}"  -u"${backup_user}" -p "${backup_pass}" --all-databases/mysqldump -h "${server_ip}"  -u "${backup_user}" -p"${backup_pass}" $dbname/g' /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh
     sed -i '136,137s/^/#/' /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh
+    cat /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh
     ```
 # copy backup sh file to destination server
 
 ```shell
-    time rsync -avzP -e ssh -i /home/datxbackup/.ssh/id_rsa /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh datxbackup@$hostname:/opt/backup/mysql
+    time rsync -avzP -e "ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no" /opt/backup/adhoc/$server_ip/backup-adhoc-mysqldb.sh datxbackup@$hostname:/opt/backup/mysql
 
 ```
 # III. add evente backup run on cronicle
@@ -82,10 +86,19 @@ mysql -u"datadm" -p"5f0D4e60-5bac-4927-b17d-2a8bc1ae4733" -h 10.48.15.130  -e "c
 ```
 ### add manual cronicle even
 ```shell
-ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no datxbackup@tpc-mysql-dev02 "/usr/bin/bash /opt/backup/mysql/backup-adhoc-mysqldb.sh >> /var/log/backup/backup-mysqldb-cronjob.log 2>&1"
+#!/bin/sh
+# Enter your shell script code here
 
-ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no datxbackup@tpc-mysql-dev02 "tail /var/log/backup/backup-mysqldb-cronjob.log"
+# Server name
+hostname="tpc-mysql-dev02"
+# Backup all databases
+#dbbkname=""
+# Data name need backup if run all then set empty
+dbbkname="datx_mautic_dev"
 
+ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no datxbackup@$hostname "/usr/bin/bash /opt/backup/mysql/backup-adhoc-mysqldb.sh "${dbbkname}">> /var/log/backup/backup-mysqldb-cronjob.log 2>&1"
+
+ssh -i /home/datxbackup/.ssh/id_rsa -o StrictHostKeyChecking=no datxbackup@$hostname "tail /var/log/backup/backup-mysqldb-cronjob.log"
 
  
 ```
