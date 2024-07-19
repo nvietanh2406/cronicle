@@ -22,6 +22,14 @@ log_dir="/var/log/backup"
 log_file="$log_dir/backup-mysqldb.log"
 dbname=""
 
+# constant var MySQL
+mysql_host="localhost"
+mysql_user="your_mysql_user"
+mysql_password="your_mysql_password"
+mysql_database="backupdb"
+mysql_table="backup_logs"
+
+
 # Declaration function
 log() {
         if [ -n "$1" ]
@@ -42,7 +50,8 @@ die() {
 #OK: 2021216
 #NOK: 14177041
 
-# Seting database need backup
+
+# Seting database need backup parameter
 
 ARGV="$@"
  if [ "x$ARGV" = "x" ] ; then 
@@ -109,6 +118,35 @@ function generate_post_data {
 EOF
 }
 
+# Hàm kiểm tra kết nối MySQL và tạo DB/bảng nếu chưa tồn tại
+check_and_create_mysql() {
+    if mysql -h "$mysql_host" -u "$mysql_user" -p"$mysql_password" -e "USE $mysql_database;" 2>/dev/null; then
+        echo "Database $mysql_database đã tồn tại."
+    else
+        echo "Tạo database $mysql_database..."
+        mysql -h "$mysql_host" -u "$mysql_user" -p"$mysql_password" -e "CREATE DATABASE $mysql_database;"
+    fi
+
+    if mysql -h "$mysql_host" -u "$mysql_user" -p"$mysql_password" "$mysql_database" -e "DESCRIBE $mysql_table;" 2>/dev/null; then
+        echo "Bảng $mysql_table đã tồn tại."
+    else
+        echo "Tạo bảng $mysql_table..."
+        mysql -h "$mysql_host" -u "$mysql_user" -p"$mysql_password" "$mysql_database" << EOF
+CREATE TABLE $mysql_table (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    backup_file VARCHAR(255),
+    file_size VARCHAR(50),
+    start_time DATETIME,
+    end_time DATETIME,
+    server_ip VARCHAR(15),
+    hostname VARCHAR(255),
+    env VARCHAR(50),
+    db_type VARCHAR(50)
+);
+EOF
+    fi
+}
+
 #Log started backup
 log "Started backup"
 
@@ -154,6 +192,22 @@ backup_file_size=$(du -hs "${backup_file}"| awk '{ print $1}')
 end_time=$(date +%Y-%m-%d_%Hh%Mm)
 backup_ok_data=$(generate_post_data "${db_type} backup full on servers ${server_ip} was successfully created" "2021216" "${backup_file_size}" "${end_time}")
 curl -H "Content-Type: application/json" -X POST -d "${backup_ok_data}" "${discord_ok_webhook}"
+
+# Hàm insert thông tin backup vào MySQL
+insert_backup_info() {
+    mysql -h "$mysql_host" -u "$mysql_user" -p"$mysql_password" "$mysql_database" << EOF
+INSERT INTO $mysql_table 
+(backup_file, file_size, start_time, end_time, server_ip, hostname, env, db_type)
+VALUES 
+('$backup_file', '$backup_file_size', '$start_time', '$end_time', '$server_ip', '$hostname', '$env', '$db_type');
+EOF
+}
+
+# Kiểm tra và tạo DB/bảng nếu cần
+check_and_create_mysql
+
+# Insert thông tin backup
+insert_backup_info
 
 #Log finished backup
 log "Finished backup \n"
