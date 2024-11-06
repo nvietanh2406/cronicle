@@ -96,3 +96,30 @@ LISTEN 0      511                *:3012            *:*    users:(("Cronicle Serv
 acess link : http://192.168.0.240:3012/#Schedule
 
 account: admin / admin
+# 4. Create service enable 
+```shell
+sudo nano /etc/systemd/system/cronicle.service
+$$
+[Unit]
+Description=Cronicle Service
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/opt/cronicle/bin/control.sh start
+ExecStop=/opt/cronicle/bin/control.sh stop
+WorkingDirectory=/opt/cronicle
+User=root
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
+
+```
+save and
+sudo systemctl daemon-reload
+sudo systemctl enable cronicle.service
+sudo systemctl start cronicle.service
+sudo systemctl status cronicle.service
+
